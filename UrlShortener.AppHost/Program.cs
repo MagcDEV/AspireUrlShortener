@@ -1,12 +1,21 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
- var postgres = builder.AddPostgres("postgres").WithPgAdmin();
+var postgresPassword = builder.AddParameter("postgres-password", secret: true);
 
- var urlDatabase = postgres.AddDatabase("url-database"); // Store the database resource
+var postgres = builder
+    .AddPostgres("postgres", password: postgresPassword) // Store the postgres resource
+    .WithDataVolume()
+    .WithPgAdmin();
 
- builder
-     .AddProject<Projects.UrlShortener_Api>("url-shortener-api")
-     .WithReference(urlDatabase) // Reference the database resource, not just postgres
-     .WaitFor(postgres);
+var urlDatabase = postgres.AddDatabase("url-database"); // Store the database resource
 
- builder.Build().Run();
+var redis = builder.AddRedis("redis");
+
+builder
+    .AddProject<Projects.UrlShortener_Api>("url-shortener-api")
+    .WithReference(urlDatabase) // Reference the database resource, not just postgres
+    .WithReference(redis)
+    .WaitFor(postgres)
+    .WaitFor(redis);
+
+builder.Build().Run();

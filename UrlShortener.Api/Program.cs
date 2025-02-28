@@ -1,49 +1,81 @@
+using Microsoft.OpenApi.Models;
 using UrlShortener.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-
 builder.AddServiceDefaults();
 
 builder.AddNpgsqlDataSource("url-database");
-builder.Services.AddHostedService<DatabaseInitializer>();
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+builder.AddRedisDistributedCache("redis");
+
+#pragma warning disable EXTEXP0018
+builder.Services.AddHybridCache();
+#pragma warning restore EXTEXP0018
+
+builder.Services.AddHostedService<DatabaseInitializer>();
+builder.Services.AddScoped<UrlshorteningService>();
+
+// Add Swagger services
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "URL Shortener API", Version = "v1" });
+});
+
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "URL Shortener API v1");
+    });
     app.MapOpenApi();
 }
 
+app.MapPost(
+    "shorten",
+    async (string url, UrlshorteningService service) =>
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            return Results.BadRequest("Invalid URL");
+        }
+
+        var shortCode = await service.ShortenUrl(url);
+
+        return Results.Ok(new { shortCode });
+    }
+);
+
+app.MapGet(
+    "{shortCode}",
+    async (string shortCode, UrlshorteningService service) =>
+    {
+        var originalUrl = await service.GetOriginalUrl(shortCode);
+
+        if (originalUrl is null)
+        {
+            return Results.NotFound();
+        }
+
+        return Results.Redirect(originalUrl);
+    }
+);
+
+app.MapGet(
+    "all",
+    async (UrlshorteningService service) =>
+    {
+        var urls = await service.GetAllUrls();
+
+        return Results.Ok(urls);
+    }
+);
+
 app.UseHttpsRedirection();
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
-
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}

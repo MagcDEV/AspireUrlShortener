@@ -9,9 +9,12 @@
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting" Version="9.1.0" />
     <PackageReference Include="Aspire.Npgsql" Version="9.1.0" />
+    <PackageReference Include="Aspire.StackExchange.Redis.DistributedCaching" Version="9.1.0" />
     <PackageReference Include="dapper" Version="2.1.66" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="9.2.0-preview.1.25105.6" />
     <PackageReference Include="Npgsql" Version="9.0.3" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="7.3.1" />
   </ItemGroup>
 
   <ItemGroup>
