@@ -16,6 +16,18 @@ builder.Services.AddHybridCache();
 builder.Services.AddHostedService<DatabaseInitializer>();
 builder.Services.AddScoped<UrlshorteningService>();
 
+// Add to services
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(
+        "AllowAll",
+        policy =>
+        {
+            policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
+        }
+    );
+});
+
 // Add Swagger services
 builder.Services.AddSwaggerGen(c =>
 {
@@ -26,14 +38,20 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
+app.UseCors("AllowAll");
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "URL Shortener API v1");
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "API v1");
+        c.ConfigObject.DisplayRequestDuration = true;
     });
     app.MapOpenApi();
+
+    // Add this to verify OpenAPI spec
+    app.MapGet("/swagger/v1/swagger.json", () => Results.File("swagger/v1/swagger.json"));
 }
 
 app.MapPost(
@@ -63,6 +81,7 @@ app.MapGet(
         }
 
         return Results.Redirect(originalUrl);
+
     }
 );
 
